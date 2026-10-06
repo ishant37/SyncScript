@@ -1,0 +1,6 @@
+FROM node:20-alpine
+WORKDIR /app
+COPY Backend/package*.json ./
+RUN npm install
+
+CMD ["node","server.js"]
