@@ -1,91 +1,147 @@
 import "./App.css"
 import { Editor } from "@monaco-editor/react"
 import { MonacoBinding } from "y-monaco"
-import { useRef, useMemo, useState, useEffect } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import * as Y from "yjs"
 import { SocketIOProvider } from "y-socket.io"
 
-const ROOM_NAME = "monaco"
-const SOCKET_URL =
-  import.meta.env.VITE_SOCKET_URL ||
-  (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin)
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000"
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || API_URL
+
+function getRoomIdFromPath() {
+  const match = window.location.pathname.match(/^\/room\/([^/]+)$/)
+  return match ? decodeURIComponent(match[1]) : ""
+}
+
+function getUsernameFromUrl() {
+  return new URLSearchParams(window.location.search).get("username") || ""
+}
 
 function App() {
   const editorRef = useRef(null)
   const bindingRef = useRef(null)
-  const [ username, setUsername ] = useState(() => {
-    return new URLSearchParams(window.location.search).get("username") || ""
-  })
-  const [ users, setUsers ] = useState([])
-  const [ connectionStatus, setConnectionStatus ] = useState("connecting")
-  const [ syncError, setSyncError ] = useState("")
+  const [roomId, setRoomId] = useState(getRoomIdFromPath)
+  const [username, setUsername] = useState(getUsernameFromUrl)
+  const [users, setUsers] = useState([])
+  const [connectionStatus, setConnectionStatus] = useState("disconnected")
+  const [errorMessage, setErrorMessage] = useState("")
 
-  const ydoc = useMemo(() => new Y.Doc(), [])
-  const yText = useMemo(() => ydoc.getText(ROOM_NAME), [ ydoc ])
+  const ydoc = useMemo(() => new Y.Doc({ guid: roomId || undefined }), [roomId])
+  const yText = useMemo(() => ydoc.getText("monaco"), [ydoc])
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setRoomId(getRoomIdFromPath())
+      setUsername(getUsernameFromUrl())
+    }
+
+    window.addEventListener("popstate", handlePopState)
+    return () => window.removeEventListener("popstate", handlePopState)
+  }, [])
+
+  const navigateToRoom = (nextRoomId, nextUsername) => {
+    const search = new URLSearchParams({ username: nextUsername })
+    window.history.pushState({}, "", `/room/${nextRoomId}?${search}`)
+    setRoomId(nextRoomId)
+    setUsername(nextUsername)
+    setErrorMessage("")
+  }
 
   const handleMount = (editor) => {
     editorRef.current = editor
-
+    bindingRef.current?.destroy()
     bindingRef.current = new MonacoBinding(
       yText,
-      editorRef.current.getModel(),
-      new Set([ editorRef.current ]),
+      editor.getModel(),
+      new Set([editor]),
     )
   }
 
-  const handleJoin = (e) => {
-    e.preventDefault()
-    const nextUsername = e.target.username.value.trim()
-    if (!nextUsername) return
+  const getFormValues = (event) => ({
+    username: event.currentTarget.username.value.trim(),
+    roomId: event.currentTarget.roomId.value.trim(),
+  })
 
-    setUsername(nextUsername)
-    window.history.pushState(
-      {},
-      "",
-      `?${new URLSearchParams({ username: nextUsername })}`,
-    )
+  const handleCreateRoom = async (event) => {
+    event.preventDefault()
+    const { username: nextUsername } = getFormValues(event)
+
+    if (!nextUsername) {
+      setErrorMessage("Enter a display name first.")
+      return
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/api/rooms`, { method: "POST" })
+      if (!response.ok) throw new Error("Room creation failed")
+      const data = await response.json()
+      navigateToRoom(data.room.roomId, nextUsername)
+    } catch (error) {
+      console.error(error)
+      setErrorMessage("Could not create a room. Is the backend running?")
+    }
+  }
+
+  const handleJoinRoom = async (event) => {
+    event.preventDefault()
+    const { username: nextUsername, roomId: nextRoomId } = getFormValues(event)
+
+    if (!nextUsername || !nextRoomId) {
+      setErrorMessage("Enter both a display name and room ID.")
+      return
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/api/rooms/${encodeURIComponent(nextRoomId)}`)
+      const data = await response.json()
+      if (!response.ok) {
+        setErrorMessage(data.message || "Room not found.")
+        return
+      }
+      navigateToRoom(data.room.roomId, nextUsername)
+    } catch (error) {
+      console.error(error)
+      setErrorMessage("Could not join the room. Is the backend running?")
+    }
+  }
+
+  const handleSubmit = (event) => {
+    if (event.nativeEvent.submitter?.value === "create") {
+      return handleCreateRoom(event)
+    }
+    return handleJoinRoom(event)
   }
 
   useEffect(() => {
-    if (!username) return undefined
+    if (!roomId || !username) return undefined
 
-    setConnectionStatus("connecting")
-    setSyncError("")
-
-    const provider = new SocketIOProvider(SOCKET_URL, ROOM_NAME, ydoc, {
+    const provider = new SocketIOProvider(SOCKET_URL, roomId, ydoc, {
       autoConnect: true,
     })
 
     const updateUsers = () => {
       const states = Array.from(provider.awareness.getStates().values())
-      const connectedUsers = states
-        .filter((state) => state.user?.username)
-        .map((state) => state.user)
-      setUsers(connectedUsers)
+      setUsers(
+        states
+          .filter((state) => state.user?.username)
+          .map((state) => state.user),
+      )
     }
-
-    const handleStatus = ({ status }) => {
-      setConnectionStatus(status)
-      if (status === "connected") setSyncError("")
-    }
-
+    const handleStatus = ({ status }) => setConnectionStatus(status)
     const handleConnectionError = (error) => {
-      setConnectionStatus("disconnected")
-      setSyncError(`Unable to connect to the collaboration server at ${SOCKET_URL}.`)
       console.error("Collaboration connection failed", error)
+      setConnectionStatus("disconnected")
     }
-
-    provider.awareness.setLocalStateField("user", { username })
-    provider.on("status", handleStatus)
-    provider.on("connection-error", handleConnectionError)
-    provider.awareness.on("change", updateUsers)
-    updateUsers()
-
     const handleBeforeUnload = () => {
       provider.awareness.setLocalStateField("user", null)
     }
 
+    provider.awareness.setLocalStateField("user", { username })
+    provider.awareness.on("change", updateUsers)
+    provider.on("status", handleStatus)
+    provider.on("connection-error", handleConnectionError)
     window.addEventListener("beforeunload", handleBeforeUnload)
+    updateUsers()
 
     return () => {
       provider.awareness.off("change", updateUsers)
@@ -94,35 +150,49 @@ function App() {
       provider.awareness.setLocalStateField("user", null)
       provider.disconnect()
       window.removeEventListener("beforeunload", handleBeforeUnload)
+      setUsers([])
     }
-  }, [ username, ydoc ])
+  }, [roomId, username, ydoc])
 
   useEffect(() => () => {
     bindingRef.current?.destroy()
     ydoc.destroy()
-  }, [ ydoc ])
+  }, [ydoc])
 
-  if (!username) {
+  if (!roomId || !username) {
     return (
       <main className="min-h-screen w-full bg-[#09090b] px-6 py-10 text-white">
         <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-5xl items-center justify-center rounded-3xl border border-white/10 bg-gradient-to-br from-violet-950/40 via-zinc-950 to-zinc-950 p-8 shadow-2xl">
           <div className="w-full max-w-md">
             <p className="mb-4 text-sm font-semibold uppercase tracking-[0.3em] text-violet-300">SyncScript</p>
             <h1 className="text-4xl font-bold tracking-tight">Collaborate in real time.</h1>
-            <p className="mt-4 text-zinc-400">Open the same room in another tab and see every edit and teammate instantly.</p>
-            <form onSubmit={handleJoin} className="mt-8 flex gap-3">
+            <p className="mt-4 text-zinc-400">Create a room or join an existing one to start editing together.</p>
+            <form onSubmit={handleSubmit} className="mt-8 space-y-3">
               <input
+                name="username"
                 type="text"
                 placeholder="Your display name"
-                className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition placeholder:text-zinc-500 focus:border-violet-400 focus:ring-2 focus:ring-violet-400/20"
-                name="username"
-                autoFocus
+                defaultValue={username}
                 maxLength={32}
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-violet-400"
               />
-              <button className="rounded-xl bg-violet-500 px-5 py-3 font-semibold transition hover:bg-violet-400">
-                Join room
-              </button>
+              <input
+                name="roomId"
+                type="text"
+                placeholder="Room ID to join"
+                defaultValue={roomId}
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-violet-400"
+              />
+              <div className="flex gap-3">
+                <button type="submit" value="join" className="flex-1 rounded-xl border border-white/15 px-4 py-3 font-semibold transition hover:bg-white/10">
+                  Join room
+                </button>
+                <button type="submit" value="create" className="flex-1 rounded-xl bg-violet-500 px-4 py-3 font-semibold transition hover:bg-violet-400">
+                  Create room
+                </button>
+              </div>
             </form>
+            {errorMessage && <p className="mt-4 text-sm text-red-300">{errorMessage}</p>}
           </div>
         </div>
       </main>
@@ -136,21 +206,19 @@ function App() {
           <p className="text-sm font-semibold uppercase tracking-[0.25em] text-violet-300">SyncScript</p>
           <div className="mt-4 flex items-center justify-between">
             <h2 className="text-xl font-semibold">Live room</h2>
-            <span className={`flex items-center gap-2 text-xs font-medium ${connectionStatus === "connected" ? "text-emerald-400" : "text-amber-300"}`}>
+            <span className="flex items-center gap-2 text-xs font-medium text-zinc-300">
               <span className={`h-2 w-2 rounded-full ${connectionStatus === "connected" ? "bg-emerald-400" : "bg-amber-300"}`} />
               {connectionStatus}
             </span>
           </div>
-          <p className="mt-1 truncate text-sm text-zinc-500">Room: {ROOM_NAME}</p>
+          <p className="mt-1 truncate text-xs text-zinc-500">{roomId}</p>
         </div>
         <div className="flex-1 p-4">
           <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">{users.length} online</p>
           <ul className="space-y-2">
             {users.map((user, index) => (
               <li key={`${user.username}-${index}`} className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-2.5">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-500/20 text-sm font-semibold text-violet-200">
-                  {user.username.slice(0, 1).toUpperCase()}
-                </span>
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-500/20 text-sm font-semibold text-violet-200">{user.username.slice(0, 1).toUpperCase()}</span>
                 <span className="truncate text-sm">{user.username}{user.username === username ? " (you)" : ""}</span>
               </li>
             ))}
@@ -165,7 +233,6 @@ function App() {
           </div>
           <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-zinc-400">{username}</span>
         </div>
-        {syncError && <div className="bg-red-950/70 px-5 py-2 text-sm text-red-200">{syncError}</div>}
         <div className="min-h-0 flex-1">
           <Editor height="100%" defaultLanguage="javascript" defaultValue="// Start writing together..." theme="vs-dark" onMount={handleMount} options={{ minimap: { enabled: false }, padding: { top: 16 } }} />
         </div>
