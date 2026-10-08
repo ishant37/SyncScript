@@ -2,6 +2,8 @@ import "dotenv/config"
 import cors from "cors"
 import express from "express"
 import { createServer } from "http"
+import { fileURLToPath } from "url"
+import { connectDatabase, isDatabaseConnected } from "./config/db.js"
 import { initializeCollaborationSocket } from "./sockets/collaboration.socket.js"
 import roomRoutes from "./routes/room.routes.js"
 import { errorHandler, notFoundHandler } from "./middleware/error.middleware.js"
@@ -18,9 +20,20 @@ app.use(express.json())
 app.use(express.static("public"))
 
 app.get("/health", (req, res) => {
+  const database = isDatabaseConnected() ? "connected" : "disconnected"
+
+  if (database === "disconnected") {
+    return res.status(503).json({
+      success: false,
+      message: "SyncScript backend is unhealthy",
+      database,
+    })
+  }
+
   res.status(200).json({
     success: true,
     message: "SyncScript backend is healthy",
+    database,
   })
 })
 
@@ -30,9 +43,20 @@ app.use(errorHandler)
 
 initializeCollaborationSocket(httpServer, clientUrl)
 
-httpServer.listen(port, () => {
-  console.log(`SyncScript backend is running on port ${port}`)
-})
+export async function startServer() {
+  await connectDatabase()
+
+  return httpServer.listen(port, () => {
+    console.log(`SyncScript backend is running on port ${port}`)
+  })
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  startServer().catch((error) => {
+    console.error("Backend startup failed", error)
+    process.exitCode = 1
+  })
+}
 
 export { app, httpServer }
  

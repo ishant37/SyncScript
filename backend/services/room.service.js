@@ -1,22 +1,22 @@
 import { v4 as uuidv4 } from "uuid"
+import Room from "../models/room.model.js"
 
-// Temporary Day 1 storage. This will be replaced by PostgreSQL later.
-const rooms = new Map()
-
-export function createRoom() {
-  const room = {
+export async function createRoom(name = "Untitled Room") {
+  return Room.create({
     roomId: uuidv4(),
-    createdAt: new Date().toISOString(),
-  }
-
-  rooms.set(room.roomId, room)
-  return room
+    name,
+  })
 }
 
-export function getRoom(roomId) {
-  return rooms.get(roomId) || null
+export async function getRoom(roomId) {
+  return Room.findOne({ roomId }).lean()
 }
 
-export function deleteRoom(roomId) {
-  return rooms.delete(roomId)
+export async function deleteRoom(roomId) {
+  const result = await Room.deleteOne({ roomId })
+  return result.deletedCount === 1
+}
+
+export async function roomExists(roomId) {
+  return Boolean(await Room.exists({ roomId }))
 }

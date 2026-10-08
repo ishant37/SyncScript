@@ -22,7 +22,10 @@ React + Monaco
 Express REST API
       |
       v
-Room Service
+Room Controller
+      |
+      v
+Room Service -> Mongoose -> MongoDB
       |
       | WebSocket
       v
@@ -48,10 +51,19 @@ GET    /health
 
 ```bash
 cd backend
-cp .env.example .env
 npm install
 npm run dev
 ```
+
+Create `backend/.env` from `.env.example`:
+
+```env
+PORT=3000
+CLIENT_URL=http://localhost:5173
+MONGO_URI=mongodb://127.0.0.1:27017/syncscript
+```
+
+Start MongoDB locally before starting the backend. Alternatively, use MongoDB Atlas and set `MONGO_URI` to the Atlas connection string. The backend connects to MongoDB before it begins accepting HTTP requests.
 
 In another terminal:
 
@@ -63,6 +75,11 @@ npm run dev
 
 Open the Vite URL, create a room, and share its `/room/:roomId` URL.
 
-## Important Day 1 limitation
+## MongoDB persistence
 
-Room information currently uses an in-memory JavaScript `Map`. It is temporary and will be replaced with PostgreSQL in a later roadmap day. Restarting the backend clears all rooms.
+SyncScript uses MongoDB for persistent application data.
+
+- **Yjs + Socket.IO:** real-time collaboration
+- **MongoDB:** persistent room metadata (`roomId`, `name`, `createdAt`, and `updatedAt`)
+
+Room IDs are indexed uniquely because they are used for frequent collaborative-room lookups. Editor content is intentionally not stored in MongoDB; Yjs remains responsible for real-time editing.
