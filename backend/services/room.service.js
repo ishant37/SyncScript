@@ -1,10 +1,11 @@
 import { v4 as uuidv4 } from "uuid"
 import Room from "../models/room.model.js"
 
-export async function createRoom(name = "Untitled Room") {
+export async function createRoom(name = "Untitled Room", owner) {
   return Room.create({
     roomId: uuidv4(),
     name,
+    owner,
   })
 }
 

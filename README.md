@@ -5,6 +5,8 @@ Real-time collaborative code editor built with React, Monaco Editor, Node.js, Ex
 ## Features
 
 - Real-time collaborative editing
+- JWT authentication
+- Bcrypt password hashing
 - Dynamic rooms
 - Monaco code editor
 - Multiple users
@@ -47,6 +49,36 @@ DELETE /api/rooms/:roomId
 GET    /health
 ```
 
+## Authentication
+
+SyncScript uses JWT-based authentication:
+
+```text
+Registration:
+Client -> Express -> bcrypt -> MongoDB
+
+Login:
+Client -> Express -> bcrypt verification -> JWT
+
+Protected API:
+Client -> Bearer token -> auth middleware -> Controller
+
+WebSocket:
+Client -> Socket.IO + JWT -> Socket authentication
+```
+
+Authentication endpoints:
+
+```text
+POST /api/auth/register
+POST /api/auth/login
+GET  /api/auth/me
+```
+
+Room creation, lookup, and deletion require a valid bearer token. Room ownership is derived from the authenticated user on the server; clients cannot choose another owner. Detailed room permissions and roles are planned for Day 4.
+
+For this learning project, the frontend stores the JWT in `localStorage`. Production applications should evaluate secure, HTTP-only cookie-based sessions or another storage strategy based on their threat model. Logout removes the local token and disconnects the current collaboration view, but JWT revocation is not implemented yet.
+
 ## Run locally
 
 ```bash
@@ -61,6 +93,8 @@ Create `backend/.env` from `.env.example`:
 PORT=3000
 CLIENT_URL=http://localhost:5173
 MONGO_URI=mongodb://127.0.0.1:27017/syncscript
+JWT_SECRET=replace_with_a_long_random_secret
+JWT_EXPIRES_IN=1d
 ```
 
 Start MongoDB locally before starting the backend. Alternatively, use MongoDB Atlas and set `MONGO_URI` to the Atlas connection string. The backend connects to MongoDB before it begins accepting HTTP requests.

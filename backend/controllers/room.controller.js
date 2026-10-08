@@ -17,6 +17,7 @@ export async function createRoom(req, res) {
 
   const room = await roomService.createRoom(
     requestedName === undefined ? undefined : requestedName.trim(),
+    req.user.userId,
   )
 
   return res.status(201).json({

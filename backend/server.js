@@ -5,6 +5,7 @@ import { createServer } from "http"
 import { fileURLToPath } from "url"
 import { connectDatabase, isDatabaseConnected } from "./config/db.js"
 import { initializeCollaborationSocket } from "./sockets/collaboration.socket.js"
+import authRoutes from "./routes/auth.routes.js"
 import roomRoutes from "./routes/room.routes.js"
 import { errorHandler, notFoundHandler } from "./middleware/error.middleware.js"
 
@@ -38,6 +39,7 @@ app.get("/health", (req, res) => {
 })
 
 app.use("/api/rooms", roomRoutes)
+app.use("/api/auth", authRoutes)
 app.use(notFoundHandler)
 app.use(errorHandler)
 

@@ -5,6 +5,7 @@ export default function RoomSidebar({
   username,
   users,
   connectionStatus,
+  onLogout,
 }) {
   return (
     <aside className="flex w-full flex-col rounded-2xl border border-white/10 bg-zinc-900/80 md:w-72">
@@ -34,6 +35,13 @@ export default function RoomSidebar({
         <p className="mt-1 truncate text-xs text-zinc-500">
           {roomId}
         </p>
+        <button
+          type="button"
+          onClick={onLogout}
+          className="mt-3 text-xs text-zinc-400 hover:text-white"
+        >
+          Log out
+        </button>
       </div>
 
       <div className="flex-1 p-4">

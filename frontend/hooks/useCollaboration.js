@@ -5,12 +5,13 @@ import { SOCKET_URL } from "../config/config";
 export function useCollaboration({
   roomId,
   username,
+  token,
   ydoc,
   setUsers,
   setConnectionStatus,
 }) {
   useEffect(() => {
-    if (!roomId || !username) {
+    if (!roomId || !username || !token) {
       return undefined;
     }
 
@@ -20,6 +21,7 @@ export function useCollaboration({
       ydoc,
       {
         autoConnect: true,
+        auth: { token },
       }
     );
 
@@ -105,6 +107,7 @@ export function useCollaboration({
   }, [
     roomId,
     username,
+    token,
     ydoc,
     setUsers,
     setConnectionStatus,

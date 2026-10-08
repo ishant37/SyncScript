@@ -16,6 +16,11 @@ const roomSchema = new mongoose.Schema(
       minlength: 1,
       maxlength: 100,
     },
+    owner: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
   },
   {
     timestamps: true,

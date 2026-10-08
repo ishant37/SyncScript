@@ -1,8 +1,9 @@
 export default function LandingPage({
-  username,
   roomId,
   errorMessage,
   onSubmit,
+  user,
+  onLogout,
 }) {
   return (
     <main className="min-h-screen w-full bg-[#09090b] px-6 py-10 text-white">
@@ -20,20 +21,21 @@ export default function LandingPage({
             Create a room or join an existing one to start
             editing together.
           </p>
+          <p className="mt-3 text-sm text-zinc-500">
+            Signed in as {user.username} ({user.email})
+          </p>
 
           <form
             onSubmit={onSubmit}
             className="mt-8 space-y-3"
           >
             <input
-              name="username"
+              name="roomName"
               type="text"
-              placeholder="Your display name"
-              defaultValue={username}
-              maxLength={32}
+              placeholder="New room name (optional)"
+              maxLength={100}
               className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-violet-400"
             />
-
             <input
               name="roomId"
               type="text"
@@ -66,6 +68,13 @@ export default function LandingPage({
               {errorMessage}
             </p>
           )}
+          <button
+            type="button"
+            onClick={onLogout}
+            className="mt-4 text-sm text-zinc-400 hover:text-white"
+          >
+            Log out
+          </button>
         </div>
       </div>
     </main>
