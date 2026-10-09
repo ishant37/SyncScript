@@ -10,7 +10,11 @@ import CodeEditor from "../components/CodeEditor";
 import { useRoomNavigation } from "../hooks/useRoomNavigation";
 import { useCollaboration } from "../hooks/useCollaboration";
 import { useMonacoBinding } from "../hooks/useMonacoBinding";
-import { createRoom, joinRoom } from "../services/roomService";
+import {
+  createRoom,
+  getRoom,
+  joinRoom,
+} from "../services/roomService";
 import {
   getCurrentUser,
   logoutUser,
@@ -18,13 +22,20 @@ import {
 import { getStoredToken } from "../services/api";
 
 function App() {
-  const { roomId, navigateToRoom } = useRoomNavigation();
+  const {
+    roomId,
+    navigateToRoom,
+    navigateToDashboard,
+  } = useRoomNavigation();
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(Boolean(getStoredToken()));
   const [users, setUsers] = useState([]);
   const [connectionStatus, setConnectionStatus] = useState("disconnected");
   const [errorMessage, setErrorMessage] = useState("");
+  const [authorizedRoom, setAuthorizedRoom] = useState(null);
+  const [createdRoom, setCreatedRoom] = useState(null);
   const token = getStoredToken();
+  const activeRoomId = authorizedRoom?.roomId || "";
 
   useEffect(() => {
     if (!token) {
@@ -40,15 +51,44 @@ function App() {
       .finally(() => setAuthLoading(false));
   }, [token]);
 
+  useEffect(() => {
+    if (!user || !roomId) {
+      return undefined;
+    }
+
+    let active = true;
+
+    getRoom(roomId)
+      .then((room) => {
+        if (active) {
+          setAuthorizedRoom(room);
+          setErrorMessage("");
+        }
+      })
+      .catch((error) => {
+        if (active) {
+          setAuthorizedRoom(null);
+          navigateToDashboard();
+          setErrorMessage(
+            error.message || "You do not have access to that room.",
+          );
+        }
+      })
+
+    return () => {
+      active = false;
+    };
+  }, [roomId, user, navigateToDashboard]);
+
   const ydoc = useMemo(
-    () => new Y.Doc({ guid: roomId || undefined }),
-    [roomId],
+    () => new Y.Doc({ guid: activeRoomId || undefined }),
+    [activeRoomId],
   );
   const yText = useMemo(() => ydoc.getText("monaco"), [ydoc]);
   const { handleMount } = useMonacoBinding(yText);
 
   useCollaboration({
-    roomId,
+    roomId: activeRoomId,
     username: user?.username,
     token,
     ydoc,
@@ -62,7 +102,17 @@ function App() {
     logoutUser();
     setUser(null);
     setUsers([]);
-    window.history.pushState({}, "", "/");
+    setAuthorizedRoom(null);
+    setCreatedRoom(null);
+    navigateToDashboard();
+  };
+
+  const handleAuthenticated = (authenticatedUser) => {
+    setUser(authenticatedUser);
+    setAuthorizedRoom(null);
+    setCreatedRoom(null);
+    setErrorMessage("");
+    navigateToDashboard();
   };
 
   const handleCreateRoom = async (event) => {
@@ -71,7 +121,7 @@ function App() {
 
     try {
       const room = await createRoom(name || undefined);
-      navigateToRoom(room.roomId, user.username);
+      setCreatedRoom(room);
       setErrorMessage("");
     } catch (error) {
       console.error(error);
@@ -82,14 +132,16 @@ function App() {
   const handleJoinRoom = async (event) => {
     event.preventDefault();
     const nextRoomId = event.currentTarget.roomId.value.trim();
+    const passcode = event.currentTarget.passcode.value.trim();
 
-    if (!nextRoomId) {
-      setErrorMessage("Enter a room ID.");
+    if (!nextRoomId || !passcode) {
+      setErrorMessage("Enter both a room ID and passcode.");
       return;
     }
 
     try {
-      const room = await joinRoom(nextRoomId);
+      const room = await joinRoom(nextRoomId, passcode);
+      setAuthorizedRoom(room);
       navigateToRoom(room.roomId, user.username);
       setErrorMessage("");
     } catch (error) {
@@ -99,7 +151,7 @@ function App() {
   };
 
   const handleSubmit = (event) => {
-    if (event.nativeEvent.submitter?.value === "create") {
+    if (event.currentTarget.roomName) {
       return handleCreateRoom(event);
     }
     return handleJoinRoom(event);
@@ -110,10 +162,12 @@ function App() {
   }
 
   if (!user) {
-    return <AuthPage onAuthenticated={setUser} />;
+    return <AuthPage onAuthenticated={handleAuthenticated} />;
   }
 
-  if (!roomId) {
+  const roomAccessPending = Boolean(roomId && user && !authorizedRoom);
+
+  if (!roomId || !authorizedRoom || roomAccessPending) {
     return (
       <LandingPage
         roomId={roomId}
@@ -121,6 +175,11 @@ function App() {
         errorMessage={errorMessage}
         onSubmit={handleSubmit}
         onLogout={handleLogout}
+        createdRoom={createdRoom}
+        onOpenCreatedRoom={() => {
+          setAuthorizedRoom(createdRoom);
+          navigateToRoom(createdRoom.roomId, user.username);
+        }}
       />
     );
   }
@@ -134,7 +193,11 @@ function App() {
         connectionStatus={connectionStatus}
         onLogout={handleLogout}
       />
-      <CodeEditor username={user.username} onMount={handleMount} />
+      <CodeEditor
+        username={user.username}
+        onMount={handleMount}
+        readOnly={authorizedRoom.role === "VIEWER"}
+      />
     </main>
   );
 }

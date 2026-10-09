@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   getRoomIdFromPath,
   getUsernameFromUrl,
@@ -21,7 +21,7 @@ export function useRoomNavigation() {
     };
   }, []);
 
-  const navigateToRoom = (nextRoomId, nextUsername) => {
+  const navigateToRoom = useCallback((nextRoomId, nextUsername) => {
     const search = new URLSearchParams({
       username: nextUsername,
     });
@@ -34,11 +34,18 @@ export function useRoomNavigation() {
 
     setRoomId(nextRoomId);
     setUsername(nextUsername);
-  };
+  }, []);
+
+  const navigateToDashboard = useCallback(() => {
+    window.history.pushState({}, "", "/");
+    setRoomId("");
+    setUsername("");
+  }, []);
 
   return {
     roomId,
     username,
     navigateToRoom,
+    navigateToDashboard,
   };
 }

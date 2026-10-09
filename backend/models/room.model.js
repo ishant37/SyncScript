@@ -21,6 +21,11 @@ const roomSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    passcodeHash: {
+      type: String,
+      required: true,
+      select: false,
+    },
   },
   {
     timestamps: true,
@@ -28,6 +33,7 @@ const roomSchema = new mongoose.Schema(
     toJSON: {
       transform: (_document, returnedRoom) => {
         delete returnedRoom._id
+        delete returnedRoom.passcodeHash
       },
     },
   },

@@ -21,7 +21,7 @@ export function useCollaboration({
       ydoc,
       {
         autoConnect: true,
-        auth: { token },
+        auth: { token, roomId },
       }
     );
 

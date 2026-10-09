@@ -15,6 +15,13 @@ export function errorHandler(error, req, res, next) {
     })
   }
 
+  if (error?.name === "CastError") {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid resource ID",
+    })
+  }
+
   if (error?.code === 11000) {
     const duplicateField = Object.keys(error.keyPattern || {})[0]
     return res.status(409).json({

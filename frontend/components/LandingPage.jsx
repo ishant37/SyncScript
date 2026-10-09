@@ -4,6 +4,8 @@ export default function LandingPage({
   onSubmit,
   user,
   onLogout,
+  createdRoom,
+  onOpenCreatedRoom,
 }) {
   return (
     <main className="min-h-screen w-full bg-[#09090b] px-6 py-10 text-white">
@@ -25,10 +27,7 @@ export default function LandingPage({
             Signed in as {user.username} ({user.email})
           </p>
 
-          <form
-            onSubmit={onSubmit}
-            className="mt-8 space-y-3"
-          >
+          <form onSubmit={onSubmit} className="mt-8 space-y-3">
             <input
               name="roomName"
               type="text"
@@ -36,31 +35,62 @@ export default function LandingPage({
               maxLength={100}
               className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-violet-400"
             />
+            <button
+              type="submit"
+              value="create"
+              className="w-full rounded-xl bg-violet-500 px-4 py-3 font-semibold transition hover:bg-violet-400"
+            >
+              Create room
+            </button>
+          </form>
+
+          {createdRoom && (
+            <div className="mt-6 rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm">
+              <p className="font-semibold text-emerald-200">
+                Room created. Share these details once:
+              </p>
+              <p className="mt-2 break-all text-zinc-300">
+                Room ID: {createdRoom.roomId}
+              </p>
+              <p className="break-all text-zinc-300">
+                Passcode: {createdRoom.passcode}
+              </p>
+              <button
+                type="button"
+                onClick={onOpenCreatedRoom}
+                className="mt-3 rounded-lg bg-emerald-500 px-3 py-2 font-semibold text-zinc-950"
+              >
+                Open room
+              </button>
+            </div>
+          )}
+
+          <form
+            onSubmit={onSubmit}
+            className="mt-6 space-y-3"
+          >
             <input
               name="roomId"
               type="text"
               placeholder="Room ID to join"
-              defaultValue={roomId}
+              defaultValue={roomId || ""}
+              required
               className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-violet-400"
             />
-
-            <div className="flex gap-3">
-              <button
-                type="submit"
-                value="join"
-                className="flex-1 rounded-xl border border-white/15 px-4 py-3 font-semibold transition hover:bg-white/10"
-              >
-                Join room
-              </button>
-
-              <button
-                type="submit"
-                value="create"
-                className="flex-1 rounded-xl bg-violet-500 px-4 py-3 font-semibold transition hover:bg-violet-400"
-              >
-                Create room
-              </button>
-            </div>
+            <input
+              name="passcode"
+              type="password"
+              placeholder="Room passcode"
+              required
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-violet-400"
+            />
+            <button
+              type="submit"
+              value="join"
+              className="w-full rounded-xl border border-white/15 px-4 py-3 font-semibold transition hover:bg-white/10"
+            >
+              Join room
+            </button>
           </form>
 
           {errorMessage && (

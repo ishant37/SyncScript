@@ -3,6 +3,7 @@ import { Editor } from "@monaco-editor/react";
 export default function CodeEditor({
   username,
   onMount,
+  readOnly = false,
 }) {
   return (
     <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#1e1e1e]">
@@ -28,6 +29,7 @@ export default function CodeEditor({
           theme="vs-dark"
           onMount={onMount}
           options={{
+            readOnly,
             minimap: {
               enabled: false,
             },
