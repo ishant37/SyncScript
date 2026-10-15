@@ -19,10 +19,26 @@ import { errorHandler, notFoundHandler } from "./middleware/error.middleware.js"
 const app = express()
 const httpServer = createServer(app)
 const port = Number(process.env.PORT) || 3000
-const clientUrl = process.env.CLIENT_URL || "http://localhost:5173"
+const clientUrls = (process.env.CLIENT_URL || "http://localhost:5173")
+  .split(",")
+  .map((url) => url.trim())
+  .filter(Boolean)
+const isAllowedClientOrigin = (origin) =>
+  !origin || clientUrls.includes(origin)
 let socketServer
 
-app.use(cors({ origin: clientUrl }))
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (isAllowedClientOrigin(origin)) {
+        callback(null, true)
+        return
+      }
+
+      callback(new Error("Origin is not allowed by SyncScript CORS policy"))
+    },
+  }),
+)
 app.use(express.json())
 
 
@@ -60,7 +76,7 @@ export async function startServer() {
   const redisClients = await connectRedis()
   socketServer = initializeCollaborationSocket(
     httpServer,
-    clientUrl,
+    clientUrls,
     redisClients,
   )
 

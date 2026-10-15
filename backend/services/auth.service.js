@@ -5,6 +5,17 @@ import User from "../models/user.model.js"
 
 const SALT_ROUNDS = 12
 
+function getRoleForEmail(email) {
+  const interviewerEmails = (process.env.INTERVIEWER_EMAILS || "")
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean)
+
+  return interviewerEmails.includes(email.toLowerCase())
+    ? "interviewer"
+    : "student"
+}
+
 function getJwtSecret() {
   if (!process.env.JWT_SECRET) {
     throw new Error("JWT_SECRET is not configured")
@@ -25,11 +36,7 @@ export function toSafeUser(user) {
 
 export async function registerUser({ username, email, password }) {
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS)
-  const interviewerEmails = (process.env.INTERVIEWER_EMAILS || "")
-    .split(",")
-    .map((value) => value.trim().toLowerCase())
-    .filter(Boolean)
-  const role = interviewerEmails.includes(email) ? "interviewer" : "student"
+  const role = getRoleForEmail(email)
   const user = await User.create({
     username,
     email,
@@ -45,6 +52,12 @@ export async function loginUser(email, password) {
 
   if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
     return null
+  }
+
+  const configuredRole = getRoleForEmail(user.email)
+  if (user.role !== configuredRole) {
+    user.role = configuredRole
+    await user.save()
   }
 
   const token = jwt.sign(

@@ -70,6 +70,72 @@ export function initializeCollaborationSocket(
     }
   })
 
+  io.on("connection", (socket) => {
+    let videoRoom = null
+
+    socket.on("video:join", async ({ roomId } = {}) => {
+      try {
+        const room = await Room.findOne({ roomId }).select("_id").lean()
+        const isMember =
+          room &&
+          (await RoomMember.exists({
+            room: room._id,
+            user: socket.user.userId,
+          }))
+
+        if (!isMember) {
+          socket.emit("video:error", { message: "You do not have access to this room." })
+          return
+        }
+
+        const nextVideoRoom = `video:${roomId}`
+        const existingPeers = Array.from(
+          io.sockets.adapter.rooms.get(nextVideoRoom) || [],
+        ).filter((socketId) => socketId !== socket.id)
+
+        if (existingPeers.length > 1) {
+          socket.emit("video:error", {
+            message: "This room already has an active 1:1 video call.",
+          })
+          return
+        }
+
+        videoRoom = nextVideoRoom
+        socket.join(videoRoom)
+        socket.emit("video:peers", existingPeers)
+        socket.to(videoRoom).emit("video:peer-joined", {
+          peerId: socket.id,
+          userId: socket.user.userId,
+        })
+      } catch (error) {
+        console.error("Video room join failed", error.message)
+        socket.emit("video:error", { message: "Could not join the video call." })
+      }
+    })
+
+    socket.on("video:signal", ({ peerId, signal } = {}) => {
+      if (!videoRoom || !peerId || !signal) return
+      io.to(peerId).emit("video:signal", {
+        peerId: socket.id,
+        signal,
+      })
+    })
+
+    socket.on("video:recording-consent", ({ consented } = {}) => {
+      if (!videoRoom) return
+      socket.to(videoRoom).emit("video:recording-consent", {
+        peerId: socket.id,
+        consented: Boolean(consented),
+      })
+    })
+
+    socket.on("disconnect", () => {
+      if (videoRoom) {
+        socket.to(videoRoom).emit("video:peer-left", { peerId: socket.id })
+      }
+    })
+  })
+
   // YSocketIO maps each client room name to its own Yjs collaborative document.
   const ySocketIO = new YSocketIO(io, {
     authenticate: authenticateYjsHandshake,

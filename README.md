@@ -13,6 +13,7 @@ Real-time collaborative code editor built with React, Monaco Editor, Node.js, Ex
 - Presence
 - WebSocket communication
 - Yjs synchronization
+- 1:1 WebRTC video calls with camera, microphone, screen sharing, and local recording consent
 
 ## Architecture
 
@@ -172,7 +173,18 @@ npm install
 npm run dev
 ```
 
-Open the Vite URL, create a room, and share its `/room/:roomId` URL.
+Vite starts the frontend over HTTPS and exposes it on the local network. On
+the host laptop, open `https://localhost:5173`. On the second laptop, open
+`https://<host-laptop-ip>:5173` (find the host IP with `ipconfig`). The browser
+may show a certificate warning for Vite's development certificate; continue to
+the site once, then allow camera and microphone access. Do not use the
+`http://` URL, because browsers only allow camera and microphone access from
+HTTPS or localhost.
+
+The Vite development proxy forwards `/api`, `/health`, and Socket.IO traffic
+to the backend on port 3000, so the second laptop does not need direct access
+to the backend port. Create a room and share its `/room/:roomId` URL. Restart
+the frontend dev server after changing this configuration.
 
 ## Interview workflow (development mode)
 
@@ -238,3 +250,17 @@ Yjs membership is rechecked periodically (5 seconds by default), so a member
 removed from MongoDB is disconnected from existing Yjs connections shortly
 after revocation. Set `COLLABORATION_AUTH_CHECK_INTERVAL_MS` to tune this
 interval.
+
+## Video calling
+
+Room members can join a 1:1 video call from the live room. Socket.IO is used
+only for authenticated WebRTC signaling; media flows directly between the two
+browsers. The first release uses Google's public STUN server, so production
+deployments should configure a TURN service for users behind restrictive
+networks. The signaling server rejects a third active participant.
+
+The call supports camera and microphone controls, screen sharing, device
+selection, connection status, and recovery when the peer leaves. Recording is
+local-only: both participants must explicitly consent, a visible indicator is
+shown while recording, and the resulting WebM file is downloaded by the
+browser. No recording media is uploaded or persisted by SyncScript.

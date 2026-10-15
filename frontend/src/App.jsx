@@ -9,6 +9,7 @@ import InterviewerDashboard from "../components/InterviewerDashboard";
 import StudentDashboard from "../components/StudentDashboard";
 import RoomSidebar from "../components/RoomSidebar";
 import CodeEditor from "../components/CodeEditor";
+import VideoCall from "../components/VideoCall";
 import { useRoomNavigation } from "../hooks/useRoomNavigation";
 import { useCollaboration } from "../hooks/useCollaboration";
 import { useMonacoBinding } from "../hooks/useMonacoBinding";
@@ -213,11 +214,14 @@ function App() {
         connectionStatus={connectionStatus}
         onLogout={handleLogout}
       />
-      <CodeEditor
-        username={user.username}
-        onMount={handleMount}
-        readOnly={authorizedRoom.role === "VIEWER"}
-      />
+      <div className="flex min-w-0 flex-1 flex-col gap-4">
+        <VideoCall roomId={activeRoomId} token={token} />
+        <CodeEditor
+          username={user.username}
+          onMount={handleMount}
+          readOnly={authorizedRoom.role === "VIEWER"}
+        />
+      </div>
     </main>
   );
 }
