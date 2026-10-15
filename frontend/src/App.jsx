@@ -5,6 +5,8 @@ import * as Y from "yjs";
 
 import AuthPage from "../components/AuthPage";
 import LandingPage from "../components/LandingPage";
+import InterviewerDashboard from "../components/InterviewerDashboard";
+import StudentDashboard from "../components/StudentDashboard";
 import RoomSidebar from "../components/RoomSidebar";
 import CodeEditor from "../components/CodeEditor";
 import { useRoomNavigation } from "../hooks/useRoomNavigation";
@@ -35,7 +37,8 @@ function App() {
   const [authorizedRoom, setAuthorizedRoom] = useState(null);
   const [createdRoom, setCreatedRoom] = useState(null);
   const token = getStoredToken();
-  const activeRoomId = authorizedRoom?.roomId || "";
+  const activeRoomId =
+    authorizedRoom?.roomId === roomId ? authorizedRoom.roomId : "";
 
   useEffect(() => {
     if (!token) {
@@ -165,22 +168,39 @@ function App() {
     return <AuthPage onAuthenticated={handleAuthenticated} />;
   }
 
-  const roomAccessPending = Boolean(roomId && user && !authorizedRoom);
+  const roomAccessPending = Boolean(
+    roomId && user && authorizedRoom?.roomId !== roomId,
+  );
 
-  if (!roomId || !authorizedRoom || roomAccessPending) {
+  if (roomAccessPending) {
+    return <main className="min-h-screen bg-[#09090b]" />;
+  }
+
+  if (!roomId || !authorizedRoom) {
+    const dashboardProps = {
+      user,
+      onLogout: handleLogout,
+      onOpenRoom: (nextRoomId) => navigateToRoom(nextRoomId, user.username),
+    };
+    if (user.role === "interviewer") {
+      return <InterviewerDashboard {...dashboardProps} />;
+    }
     return (
-      <LandingPage
-        roomId={roomId}
-        user={user}
-        errorMessage={errorMessage}
-        onSubmit={handleSubmit}
-        onLogout={handleLogout}
-        createdRoom={createdRoom}
-        onOpenCreatedRoom={() => {
-          setAuthorizedRoom(createdRoom);
-          navigateToRoom(createdRoom.roomId, user.username);
-        }}
-      />
+      <>
+        <StudentDashboard {...dashboardProps} />
+        <LandingPage
+          roomId={roomId}
+          user={user}
+          errorMessage={errorMessage}
+          onSubmit={handleSubmit}
+          onLogout={handleLogout}
+          createdRoom={createdRoom}
+          onOpenCreatedRoom={() => {
+            setAuthorizedRoom(createdRoom);
+            navigateToRoom(createdRoom.roomId, user.username);
+          }}
+        />
+      </>
     );
   }
 

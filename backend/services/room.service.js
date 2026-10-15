@@ -56,6 +56,17 @@ export async function joinRoom(roomId, passcode, userId) {
   }
 }
 
+export async function ensureMember(roomId, userId, role = "EDITOR") {
+  const room = await Room.findOne({ roomId }).select("_id").lean()
+  if (!room) return false
+  await RoomMember.findOneAndUpdate(
+    { room: room._id, user: userId },
+    { $setOnInsert: { role } },
+    { upsert: true, runValidators: true },
+  )
+  return true
+}
+
 export async function getRoomForUser(roomId, userId) {
   const room = await Room.findOne({ roomId }).lean()
   if (!room) {

@@ -18,12 +18,25 @@ export function toSafeUser(user) {
     id: user._id.toString(),
     username: user.username,
     email: user.email,
+    role: user.role || "student",
+    emailVerified: Boolean(user.emailVerified),
   }
 }
 
 export async function registerUser({ username, email, password }) {
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS)
-  const user = await User.create({ username, email, passwordHash })
+  const interviewerEmails = (process.env.INTERVIEWER_EMAILS || "")
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean)
+  const role = interviewerEmails.includes(email) ? "interviewer" : "student"
+  const user = await User.create({
+    username,
+    email,
+    passwordHash,
+    role,
+    emailVerified: false,
+  })
   return toSafeUser(user)
 }
 
@@ -35,7 +48,7 @@ export async function loginUser(email, password) {
   }
 
   const token = jwt.sign(
-    { userId: user._id.toString(), email: user.email },
+    { userId: user._id.toString(), email: user.email, role: user.role },
     getJwtSecret(),
     { expiresIn: process.env.JWT_EXPIRES_IN || "1d" },
   )

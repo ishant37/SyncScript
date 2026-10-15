@@ -13,6 +13,7 @@ import {
 import { initializeCollaborationSocket } from "./sockets/collaboration.socket.js"
 import authRoutes from "./routes/auth.routes.js"
 import roomRoutes from "./routes/room.routes.js"
+import interviewRoutes from "./routes/interview.routes.js"
 import { errorHandler, notFoundHandler } from "./middleware/error.middleware.js"
 
 const app = express()
@@ -50,6 +51,7 @@ app.get("/health", (req, res) => {
 
 app.use("/api/rooms", roomRoutes)
 app.use("/api/auth", authRoutes)
+app.use("/api/interviews", interviewRoutes)
 app.use(notFoundHandler)
 app.use(errorHandler)
 

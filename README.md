@@ -147,6 +147,8 @@ JWT_EXPIRES_IN=1d
 REDIS_ENABLED=false
 REDIS_REQUIRED=false
 REDIS_URL=redis://127.0.0.1:6379
+EMAIL_PROVIDER=mock
+INTERVIEWER_EMAILS=interviewer@example.com
 ```
 
 Start MongoDB locally before starting the backend. Alternatively, use MongoDB Atlas and set `MONGO_URI` to the Atlas connection string. The backend connects to MongoDB before it begins accepting HTTP requests.
@@ -171,6 +173,20 @@ npm run dev
 ```
 
 Open the Vite URL, create a room, and share its `/room/:roomId` URL.
+
+## Interview workflow (development mode)
+
+Users whose email is listed in `INTERVIEWER_EMAILS` receive the interviewer
+role during registration. Other users are students. Interviewers can schedule
+an interview from their dashboard by providing a student email, local date and
+time, time zone, duration, and topics. Students see matching invitations on
+their dashboard and can join only during the server-enforced interview window.
+
+`EMAIL_PROVIDER=mock` is intentionally the only provider currently supported.
+It records an accepted mock invitation in MongoDB; it does not send email.
+The interview room is still protected by the existing JWT, room membership, and
+Socket.IO/Yjs authorization checks. A real invitation-link and email provider
+integration is not implemented yet.
 
 ## MongoDB persistence
 

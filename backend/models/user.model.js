@@ -22,6 +22,16 @@ const userSchema = new mongoose.Schema(
       required: true,
       select: false,
     },
+    role: {
+      type: String,
+      enum: ["interviewer", "student"],
+      default: "student",
+      required: true,
+    },
+    emailVerified: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,
