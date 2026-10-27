@@ -19,10 +19,28 @@ import { errorHandler, notFoundHandler } from "./middleware/error.middleware.js"
 const app = express()
 const httpServer = createServer(app)
 const port = Number(process.env.PORT) || 3000
-const clientUrls = (process.env.CLIENT_URL || "http://localhost:5173")
+const configuredClientUrls = (process.env.CLIENT_URL || "https://localhost:5173")
   .split(",")
   .map((url) => url.trim())
   .filter(Boolean)
+const clientUrls = [
+  ...new Set(
+    configuredClientUrls.flatMap((url) => {
+      try {
+        const parsed = new URL(url)
+        if (parsed.hostname !== "localhost" && parsed.hostname !== "127.0.0.1") {
+          return [url]
+        }
+        const alternateProtocol = parsed.protocol === "https:" ? "http:" : "https:"
+        const alternate = new URL(url)
+        alternate.protocol = alternateProtocol
+        return [url, alternate.toString().replace(/\/$/, "")]
+      } catch {
+        return [url]
+      }
+    }),
+  ),
+]
 const isAllowedClientOrigin = (origin) =>
   !origin || clientUrls.includes(origin)
 let socketServer

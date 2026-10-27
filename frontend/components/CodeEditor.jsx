@@ -2,6 +2,7 @@ import { Editor } from "@monaco-editor/react";
 
 export default function CodeEditor({
   username,
+  language = "javascript",
   onMount,
   readOnly = false,
 }) {
@@ -24,7 +25,7 @@ export default function CodeEditor({
       <div className="min-h-0 flex-1">
         <Editor
           height="100%"
-          defaultLanguage="javascript"
+          language={language}
           defaultValue="// Start writing together..."
           theme="vs-dark"
           onMount={onMount}

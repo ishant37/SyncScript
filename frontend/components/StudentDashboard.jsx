@@ -22,14 +22,14 @@ export default function StudentDashboard({ user, onOpenRoom, onLogout }) {
   };
 
   return (
-    <DashboardShell title={`Welcome, ${user.username}`} onLogout={onLogout}>
-      <section className="rounded-2xl border border-white/10 bg-zinc-900/80 p-5">
-        <h2 className="text-xl font-semibold">Your interviews</h2>
+    <DashboardShell title={`Welcome back, ${user.username}`} onLogout={onLogout}>
+      <section className="dashboard-card">
+        <div className="section-heading"><div><p className="eyebrow">Your schedule</p><h2>Upcoming interviews</h2></div><span className="section-badge">{interviews.length} total</span></div>
         {errorMessage && <p className="mt-3 text-sm text-red-300">{errorMessage}</p>}
         <div className="mt-4 space-y-3">
           {!interviews.length && <p className="text-zinc-500">No interview invitations yet.</p>}
           {interviews.map((interview) => (
-            <article key={interview._id} className="rounded-xl bg-white/5 p-4">
+            <article key={interview._id} className="interview-row">
               <h3 className="font-semibold">{interview.title}</h3>
               <p className="text-sm text-zinc-400">
                 {new Date(interview.scheduledAt).toLocaleString()} · {interview.durationMinutes} minutes

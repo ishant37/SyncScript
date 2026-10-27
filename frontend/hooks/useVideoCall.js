@@ -20,6 +20,8 @@ export function useVideoCall({ roomId, token, username }) {
   const localStreamRef = useRef(null);
   const recorderRef = useRef(null);
   const recordedChunksRef = useRef([]);
+  const startingRef = useRef(false);
+  const pendingCandidatesRef = useRef(new Map());
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
   const [status, setStatus] = useState("idle");
@@ -65,7 +67,8 @@ export function useVideoCall({ roomId, token, username }) {
   );
 
   const start = useCallback(async () => {
-    if (!roomId || !token || localStreamRef.current) return;
+    if (!roomId || !token || localStreamRef.current || startingRef.current) return;
+    startingRef.current = true;
     try {
       setError("");
       const mediaDevices = requireMediaDevices();
@@ -81,6 +84,17 @@ export function useVideoCall({ roomId, token, username }) {
         setStatus("waiting");
         socket.emit("video:join", { roomId });
       });
+      socket.on("disconnect", (reason) => {
+        if (reason !== "io client disconnect") {
+          setStatus("reconnecting");
+          setError("Video connection interrupted. Reconnecting...");
+        }
+      });
+      socket.io.on("reconnect", () => {
+        setError("");
+        setStatus("waiting");
+        socket.emit("video:join", { roomId });
+      });
       socket.on("video:peers", (peerIds) => {
         peerIds.forEach((peerId) => createPeer(peerId, true, stream));
         if (peerIds.length) setStatus("connecting");
@@ -90,19 +104,36 @@ export function useVideoCall({ roomId, token, username }) {
         setStatus("connecting");
       });
       socket.on("video:signal", async ({ peerId, signal }) => {
-        let peer = peersRef.current.get(peerId);
-        if (!peer) peer = createPeer(peerId, false, stream);
-        if (signal.description) {
-          await peer.setRemoteDescription(signal.description);
-          if (signal.description.type === "offer") {
-            const answer = await peer.createAnswer();
-            await peer.setLocalDescription(answer);
-            sendSignal(peerId, { description: answer });
+        try {
+          let peer = peersRef.current.get(peerId);
+          if (!peer) peer = createPeer(peerId, false, stream);
+          if (signal.description) {
+            await peer.setRemoteDescription(signal.description);
+            const pending = pendingCandidatesRef.current.get(peerId) || [];
+            for (const candidate of pending) {
+              await peer.addIceCandidate(candidate);
+            }
+            pendingCandidatesRef.current.delete(peerId);
+            if (signal.description.type === "offer") {
+              const answer = await peer.createAnswer();
+              await peer.setLocalDescription(answer);
+              sendSignal(peerId, { description: answer });
+            }
+          } else if (signal.candidate) {
+            if (peer.remoteDescription) {
+              await peer.addIceCandidate(signal.candidate);
+            } else {
+              const candidates = pendingCandidatesRef.current.get(peerId) || [];
+              candidates.push(signal.candidate);
+              pendingCandidatesRef.current.set(peerId, candidates);
+            }
           }
-        } else if (signal.candidate) {
-          await peer.addIceCandidate(signal.candidate);
+          setStatus("connected");
+        } catch (signalError) {
+          console.error("Video signaling failed", signalError);
+          setError("The video connection could not negotiate. Try leaving and joining again.");
+          setStatus("error");
         }
-        setStatus("connected");
       });
       socket.on("video:peer-left", ({ peerId }) => {
         peersRef.current.get(peerId)?.close();
@@ -114,20 +145,34 @@ export function useVideoCall({ roomId, token, username }) {
       socket.on("video:recording-consent", ({ consented: peerConsent }) => {
         setPeerConsented(peerConsent);
       });
-      socket.on("video:error", ({ message }) => setError(message));
+      socket.on("video:error", ({ message }) => {
+        setError(message || "Could not join the video call.");
+        setStatus("error");
+      });
       socket.on("connect_error", (connectError) => {
-        setError(connectError.message);
-        setStatus("disconnected");
+        console.error("Video socket connection failed", connectError);
+        setError(`Video connection failed: ${connectError.message}`);
+        setStatus("error");
       });
     } catch (startError) {
-      setError(startError.message || "Camera and microphone access is required.");
+      console.error("Could not start video call", startError);
+      const message =
+        startError.name === "NotAllowedError"
+          ? "Camera or microphone permission was denied. Allow access in the browser and retry."
+          : startError.name === "NotFoundError"
+            ? "No camera or microphone was found on this device."
+            : startError.message || "Camera and microphone access is required.";
+      setError(message);
       setStatus("error");
+    } finally {
+      startingRef.current = false;
     }
   }, [createPeer, roomId, sendSignal, token]);
 
   const stop = useCallback(() => {
     peersRef.current.forEach((peer) => peer.close());
     peersRef.current.clear();
+    pendingCandidatesRef.current.clear();
     socketRef.current?.disconnect();
     socketRef.current = null;
     localStreamRef.current?.getTracks().forEach((track) => track.stop());
@@ -137,6 +182,10 @@ export function useVideoCall({ roomId, token, username }) {
     setStatus("idle");
     setPeerConsented(false);
     setConsented(false);
+    setIsMuted(false);
+    setIsCameraOff(false);
+    setIsScreenSharing(false);
+    startingRef.current = false;
   }, []);
 
   const toggleMute = () => {

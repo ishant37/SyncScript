@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { loginUser, registerUser } from "../services/authService";
 
-export default function AuthPage({ onAuthenticated }) {
+export default function AuthPage({ onAuthenticated, initialError = "" }) {
   const [mode, setMode] = useState("login");
-  const [errorMessage, setErrorMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState(initialError);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (event) => {
@@ -39,29 +39,38 @@ export default function AuthPage({ onAuthenticated }) {
   };
 
   return (
-    <main className="min-h-screen w-full bg-[#09090b] px-6 py-10 text-white">
-      <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-5xl items-center justify-center rounded-3xl border border-white/10 bg-gradient-to-br from-violet-950/40 via-zinc-950 to-zinc-950 p-8 shadow-2xl">
-        <div className="w-full max-w-md">
-          <p className="mb-4 text-sm font-semibold uppercase tracking-[0.3em] text-violet-300">
-            SyncScript
+    <main className="auth-page">
+      <div className="auth-card">
+        <div className="auth-intro">
+          <div className="brand-mark">S</div>
+          <p className="eyebrow">SyncScript workspace</p>
+          <h1>Build together, without the handoff.</h1>
+          <p className="auth-description">
+            A focused space for interviews, pair programming, and real-time collaboration.
           </p>
-          <h1 className="text-4xl font-bold tracking-tight">
+          <div className="auth-points">
+            <span>● Shared editor</span><span>● Live video</span><span>● Interview rooms</span>
+          </div>
+        </div>
+        <div className="auth-form-panel">
+          <p className="form-kicker">{mode === "login" ? "Welcome back" : "Get started"}</p>
+          <h2>
             {mode === "login" ? "Welcome back." : "Create your account."}
-          </h1>
-          <p className="mt-4 text-zinc-400">
+          </h2>
+          <p className="form-subtitle">
             {mode === "login"
               ? "Log in to collaborate in real time."
               : "Register to create and join collaborative rooms."}
           </p>
 
-          <form onSubmit={handleSubmit} className="mt-8 space-y-3">
+          <form onSubmit={handleSubmit} className="auth-form">
             {mode === "register" && (
               <input
                 name="username"
                 required
                 maxLength={50}
                 placeholder="Username"
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-violet-400"
+                className="field"
               />
             )}
             <input
@@ -69,7 +78,7 @@ export default function AuthPage({ onAuthenticated }) {
               required
               type="email"
               placeholder="Email"
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-violet-400"
+              className="field"
             />
             <input
               name="password"
@@ -77,12 +86,12 @@ export default function AuthPage({ onAuthenticated }) {
               minLength={8}
               type="password"
               placeholder="Password (at least 8 characters)"
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-violet-400"
+              className="field"
             />
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full rounded-xl bg-violet-500 px-4 py-3 font-semibold transition hover:bg-violet-400 disabled:opacity-60"
+              className="primary-button"
             >
               {isSubmitting
                 ? "Please wait..."
@@ -93,7 +102,7 @@ export default function AuthPage({ onAuthenticated }) {
           </form>
 
           {errorMessage && (
-            <p className="mt-4 text-sm text-red-300">{errorMessage}</p>
+            <p className="error-banner">{errorMessage}</p>
           )}
           <button
             type="button"
@@ -101,7 +110,7 @@ export default function AuthPage({ onAuthenticated }) {
               setMode(mode === "login" ? "register" : "login");
               setErrorMessage("");
             }}
-            className="mt-5 text-sm text-violet-300 hover:text-violet-200"
+            className="text-button"
           >
             {mode === "login"
               ? "Need an account? Register"

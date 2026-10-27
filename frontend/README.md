@@ -1,4 +1,16 @@
-# React + Vite
+# SyncScript frontend
+
+The Vite development server runs on local HTTP. Start the frontend with
+`npm run dev`, then open:
+
+`http://localhost:5173`
+
+Use `localhost` rather than a network IP for local camera and microphone
+testing. Browsers treat localhost as a secure context for media permissions.
+
+For video calls between different devices, the frontend must be served from an
+HTTPS origin with a trusted certificate. Plain `http://192.168.x.x:5173` can
+load the editor, but browsers will block camera and microphone access.
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 

@@ -57,9 +57,9 @@ export default function InterviewerDashboard({
   };
 
   return (
-    <DashboardShell title={`Welcome, ${user.username}`} onLogout={onLogout}>
-      <section className="rounded-2xl border border-white/10 bg-zinc-900/80 p-5">
-        <h2 className="text-xl font-semibold">Schedule an interview</h2>
+    <DashboardShell title={`Welcome back, ${user.username}`} onLogout={onLogout}>
+      <section className="dashboard-card schedule-card dashboard-section">
+        <div className="section-heading"><div><p className="eyebrow">Interview room</p><h2>Schedule an interview</h2></div><span className="section-badge">New</span></div>
         <form onSubmit={handleSubmit} className="mt-4 grid gap-3 md:grid-cols-2">
           <input name="title" required placeholder="Interview title" className="field" />
           <input name="studentEmail" required type="email" placeholder="Student email" className="field" />
@@ -91,13 +91,13 @@ export default function InterviewerDashboard({
 
 function InterviewList({ interviews, onOpenRoom }) {
   return (
-    <section className="rounded-2xl border border-white/10 bg-zinc-900/80 p-5">
-      <h2 className="text-xl font-semibold">Your interviews</h2>
+    <section className="dashboard-card dashboard-section">
+    <div className="section-heading"><div><p className="eyebrow">Upcoming</p><h2>Your interviews</h2></div><span className="section-badge">{interviews.length} total</span></div>
       <div className="mt-4 space-y-3">
         {!interviews.length && <p className="text-zinc-500">No interviews scheduled yet.</p>}
         {interviews.map((interview) => (
-          <article key={interview._id} className="rounded-xl bg-white/5 p-4">
-            <div className="flex items-center justify-between gap-3">
+          <article key={interview._id} className="interview-row">
+            <div className="interview-row-content flex items-center justify-between gap-3">
               <div>
                 <h3 className="font-semibold">{interview.title}</h3>
                 <p className="text-sm text-zinc-400">{interview.studentEmail} · {interview.status}</p>
@@ -115,13 +115,14 @@ function InterviewList({ interviews, onOpenRoom }) {
 
 export function DashboardShell({ title, onLogout, children }) {
   return (
-    <main className="min-h-screen w-full bg-[#09090b] p-6 text-white">
-      <div className="mx-auto max-w-5xl space-y-5">
-        <header className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">{title}</h1>
-          <button onClick={onLogout} className="text-sm text-zinc-400 hover:text-white">Log out</button>
+    <main className="dashboard-page">
+      <div className="dashboard-container">
+        <header className="dashboard-header">
+          <div className="brand-lockup"><div className="brand-mark small">S</div><span>SyncScript</span></div>
+          <div className="dashboard-title"><p className="eyebrow">Your workspace</p><h1>{title}</h1></div>
+          <button onClick={onLogout} className="text-button">Sign out <span>↗</span></button>
         </header>
-        {children}
+        <div className="dashboard-content">{children}</div>
       </div>
     </main>
   );

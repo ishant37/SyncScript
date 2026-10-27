@@ -21,19 +21,11 @@ export function useRoomNavigation() {
     };
   }, []);
 
-  const navigateToRoom = useCallback((nextRoomId, nextUsername) => {
-    const search = new URLSearchParams({
-      username: nextUsername,
-    });
-
-    window.history.pushState(
-      {},
-      "",
-      `/room/${nextRoomId}?${search}`
-    );
+  const navigateToRoom = useCallback((nextRoomId) => {
+    window.history.pushState({}, "", `/room/${encodeURIComponent(nextRoomId)}`);
 
     setRoomId(nextRoomId);
-    setUsername(nextUsername);
+    setUsername("");
   }, []);
 
   const navigateToDashboard = useCallback(() => {
