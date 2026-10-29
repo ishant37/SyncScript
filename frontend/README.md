@@ -12,6 +12,20 @@ For video calls between different devices, the frontend must be served from an
 HTTPS origin with a trusted certificate. Plain `http://192.168.x.x:5173` can
 load the editor, but browsers will block camera and microphone access.
 
+WebRTC uses Google STUN by default. For participants on networks that block
+direct peer connections, configure a TURN server in the frontend environment
+before starting Vite:
+
+```env
+VITE_TURN_URL=turn:turn.example.com:3478
+VITE_TURN_USERNAME=your-turn-username
+VITE_TURN_CREDENTIAL=your-turn-credential
+```
+
+The remote video tile includes an **Enable participant audio** control when the
+browser blocks audible autoplay. This is expected browser behavior; click it
+once after joining to hear the participant.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

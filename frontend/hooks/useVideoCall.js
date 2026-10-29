@@ -2,7 +2,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import { SOCKET_URL } from "../config/config";
 
-const ICE_SERVERS = [{ urls: "stun:stun.l.google.com:19302" }];
+const ICE_SERVERS = [
+  { urls: "stun:stun.l.google.com:19302" },
+  ...(import.meta.env.VITE_TURN_URL
+    ? [
+        {
+          urls: import.meta.env.VITE_TURN_URL,
+          username: import.meta.env.VITE_TURN_USERNAME,
+          credential: import.meta.env.VITE_TURN_CREDENTIAL,
+        },
+      ]
+    : []),
+];
 
 function requireMediaDevices() {
   if (!navigator.mediaDevices?.getUserMedia) {
@@ -22,6 +33,7 @@ export function useVideoCall({ roomId, token, username }) {
   const recordedChunksRef = useRef([]);
   const startingRef = useRef(false);
   const pendingCandidatesRef = useRef(new Map());
+  const remoteStreamRef = useRef(new MediaStream());
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
   const [status, setStatus] = useState("idle");
@@ -44,7 +56,14 @@ export function useVideoCall({ roomId, token, username }) {
       peer.onicecandidate = ({ candidate }) => {
         if (candidate) sendSignal(peerId, { candidate });
       };
-      peer.ontrack = ({ streams }) => setRemoteStream(streams[0]);
+      peer.ontrack = ({ track, streams }) => {
+        const remoteStream = streams[0] || remoteStreamRef.current;
+        if (!remoteStream.getTrackById(track.id)) {
+          remoteStream.addTrack(track);
+        }
+        remoteStreamRef.current = remoteStream;
+        setRemoteStream(remoteStream);
+      };
       peer.onconnectionstatechange = () => {
         if (["failed", "disconnected", "closed"].includes(peer.connectionState)) {
           peer.close();
@@ -179,6 +198,7 @@ export function useVideoCall({ roomId, token, username }) {
     localStreamRef.current = null;
     setLocalStream(null);
     setRemoteStream(null);
+    remoteStreamRef.current = new MediaStream();
     setStatus("idle");
     setPeerConsented(false);
     setConsented(false);

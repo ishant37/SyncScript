@@ -30,6 +30,7 @@ function VideoTile({
   isLocal = false,
 }) {
   const videoRef = useRef(null);
+  const [playbackBlocked, setPlaybackBlocked] = useState(false);
   const hasVideo = Boolean(stream) && !isCameraOff;
 
   useEffect(() => {
@@ -37,11 +38,17 @@ function VideoTile({
     if (!video) return;
 
     video.srcObject = stream || null;
+    setPlaybackBlocked(false);
+    if (stream) {
+      video.play().catch(() => {
+        if (!muted) setPlaybackBlocked(true);
+      });
+    }
 
     return () => {
       video.srcObject = null;
     };
-  }, [stream]);
+  }, [muted, stream]);
 
   return (
     <div className="group relative aspect-video min-h-44 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 shadow-lg">
@@ -51,6 +58,9 @@ function VideoTile({
           autoPlay
           playsInline
           muted={muted}
+          onClick={() => {
+            videoRef.current?.play().then(() => setPlaybackBlocked(false)).catch(() => {});
+          }}
           className={`h-full w-full object-cover ${
             isLocal ? "[transform:scaleX(-1)]" : ""
           }`}
@@ -68,6 +78,18 @@ function VideoTile({
             {stream ? "Camera is off" : "Waiting for video"}
           </span>
         </div>
+      )}
+
+      {playbackBlocked && (
+        <button
+          type="button"
+          onClick={() => {
+            videoRef.current?.play().then(() => setPlaybackBlocked(false)).catch(() => {});
+          }}
+          className="absolute inset-0 m-auto h-fit w-fit rounded-lg bg-emerald-500 px-3 py-2 text-xs font-semibold text-black shadow-lg"
+        >
+          Enable participant audio
+        </button>
       )}
 
       <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/80 to-transparent px-3 pb-3 pt-10">
